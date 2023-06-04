@@ -1,2 +1,2 @@
 # CI-CD-CloudRun
-CI/CD in GCP CloudRun
+This is a demo CI/CD for flask application in CloudRun.

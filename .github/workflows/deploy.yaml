@@ -1,0 +1,45 @@
+name: CloudRun-GCP
+env:
+  PROJECT_NAME: demo-cloudrun
+  REGION: us-central1
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    name: Deploy to CloudRun
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v3
+
+      - name: Auth to GCloud
+        id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+      
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          version: '>= 363.0.0'
+
+      - name: Configure Docker
+        run: |
+          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin ${{ secrets.REGISTRY_URL }}
+
+      - name: Build and Push Docker image
+        run: |
+          export IMAGE_NAME=${{ secrets.REGISTRY_URL }}/${{ secrets.GCP_ID }}/${{ env.PROJECT_NAME }}:${{ github.run_number }}-${{ github.sha }}
+          docker build -t $IMAGE_NAME .
+          docker push $IMAGE_NAME
+
+      - name: Deploy to Cloud Run
+        run: |
+          export IMAGE_NAME=${{ secrets.REGISTRY_URL }}/${{ secrets.GCP_ID }}/${{ env.PROJECT_NAME }}:${{ github.run_number }}-${{ github.sha }}
+          gcloud run deploy ${{ env.PROJECT_NAME }} --image $IMAGE_NAME --project ${{ secrets.GCP_ID }} --platform managed \--region ${{ env.REGION }} --allow-unauthenticated --memory=1Gi
